@@ -1,3 +1,4 @@
+#This Python file can organise any MAG dataset for use with CIDRE using the Papers, Journals, and References MAG datasets.
 import numpy as np
 import pandas as pd
 import csv
@@ -8,8 +9,7 @@ import codecs
 import time
 
 
-#NOTE: THIS FILE CAN ONLY BE RUN IF THE PAPERS, REFERENCES, AND JOURNAL TABLES ARE WITHIN THE SAME FOLDER AS THIS FILE.
-
+#NOTE: THIS FILE CAN ONLY BE RUN IF THE PAPERS, REFERENCES, AND JOURNAL MAG TABLES ARE WITHIN THE SAME FOLDER AS THIS FILE.
 
 def clean_journals():
     #Create the csv file that contains extra info about the journals but also the separate ID-Name csv file 
@@ -33,8 +33,10 @@ def clean_journals():
     df.dropna(inplace=True)
     df.to_csv("Journal_ID-Journal_Names.csv",index = False)
 
+##########################################################################################
+
 def clean_papers():
-    #Create the csv file that contains Paper-Journal connections
+    #Create the csv file that contains Paper-Journal translations
     maxInt = sys.maxsize
     while True:
         try:
@@ -42,7 +44,9 @@ def clean_papers():
             break
         except OverflowError:
             maxInt = int(maxInt/10)
-    df201819, df2020 = [], []
+
+    #Store 201819 and 2020 separately in dicts
+    df201819, df2020 = dict.fromkeys(["PaperID","JournalID"]), dict.fromkeys(["PaperID","JournalID"])
     cnt201819,cnt2020,totalcnt = 0, 0, 0
     bot2018 = dt.datetime.strptime('2018-01-01','%Y-%m-%d')
     mid2020 = dt.datetime.strptime('2020-01-01','%Y-%m-%d')
@@ -56,153 +60,51 @@ def clean_papers():
                     try:
                         paper_date = dt.datetime.strptime(row[24],'%Y-%m-%d')
                         if paper_date >= mid2020 and paper_date < top and row[0] != '' and row[11] != '':
-                            row[0] = int(row[0])
-                            row[11] = int(row[11])
-                            df2020.append([row[0],row[11]])
+                            if df2020["PaperID"] == None or df2020["JournalID"] == None:
+                                df2020["PaperID"] = [int(row[0])]
+                                df2020["JournalID"] = [int(row[11])]
+                            else:
+                                df2020["PaperID"].append(int(row[0]))
+                                df2020["JournalID"].append(int(row[11]))
                             cnt2020 += 1
                         elif paper_date > bot2018 and paper_date < mid2020 and row[0] != '' and row[11] != '':
-                            row[0] = int(row[0])
-                            row[11] = int(row[11])
-                            df201819.append([row[0],row[11]])
+                            if df201819["PaperID"] == None or df201819["JournalID"] == None:
+                                df201819["PaperID"] = [int(row[0])]
+                                df201819["JournalID"] = [int(row[11])]
+                            else:
+                                df201819["PaperID"].append(int(row[0]))
+                                df201819["JournalID"].append(int(row[11]))
                             cnt201819 += 1
                     except IndexError:
                         pass
                     except ValueError:
                         pass
-                    totalcnt += 1
-                    if totalcnt % 100000 == 0 and totalcnt != 0:
-                        #Report progress
-                        print("2020 items found:" + str(cnt2020))
-                        print("201819 items found:" + str(cnt201819))
-                        print("Items searched:" + str(totalcnt))
-                else:
-                    pass
-        except:
-            print(row)
+                totalcnt += 1
+                if totalcnt % 1000000 == 0 and totalcnt != 0:
+                    #Report progress
+                    print("2020 items found:" + str(cnt2020))
+                    print("201819 items found:" + str(cnt201819))
+                    print("Items searched:" + str(totalcnt))
+        except Exception as e:
+            pass
+                
+            
+
     print("Final 2020 items found:" + str(cnt2020))
     print("Final 201819 items found:" + str(cnt201819))
-    print("Items found: "+str(totalcnt))
-    #store 201819
-    papers = np.array([[row[0] for row in df201819],[row[1] for row in df201819]])
-    papers = np.transpose(papers)
-    df201819 = pd.DataFrame(papers,columns = ["Paper_ID", "Journal_ID"])
-    df201819.dropna(inplace=True)
-    df201819.to_csv("Paper_ID-Journal_ID201819.csv",index = False)
-    df201819 = []
+    print("Items searched: "+str(totalcnt))
+
     #store 2020
-    papers = np.array([[row[0] for row in df2020],[row[1] for row in df2020]])
-    papers = np.transpose(papers)
-    df2020 = pd.DataFrame(papers,columns = ["Paper_ID", "Journal_ID"])
-    df2020.dropna(inplace=True)
-    df2020.to_csv("Paper_ID-Journal_ID2020.csv",index = False)
-    df2020 = []
+    df2020 = pd.DataFrame.from_dict(df2020)
+    df2020.to_csv('2020paper-journals.csv', index=False)
+
+    #store 201819
+    df201819 = pd.DataFrame.from_dict(df201819)
+    df201819.to_csv('201819paper-journals.csv', index=False)
     
+################################################################################
 
-def clean_Refs():
-    #Create the csv file that contains source-target connections
-    maxInt = sys.maxsize
-    while True:
-        try:
-            csv.field_size_limit(maxInt)
-            break
-        except OverflowError:
-            maxInt = int(maxInt/10)
-
-    #Create csv file of just references citer -> citee
-    df = []
-    cnt,totalcnt = 0, 0
-    papers2020 = pd.read_csv("Paper_ID-Journal_ID2020.csv")
-    papers201819 = pd.read_csv("Paper_ID-Journal_ID201819.csv")
-
-    #Remove duplicates as this is an ID file
-    papers2020 = papers2020.drop_duplicates()
-    papers201819 = papers201819.drop_duplicates()
-
-    #Converet to numpy array
-    papers2020 = papers2020.values
-    papers201819 = papers201819.values
-
-    #Exctract ID lists
-    paper2020IDs = papers2020[:,0]
-    journal2020IDs = papers2020[:,1]
-    paper201819IDs = papers201819[:,0]
-    journal201819IDs = papers201819[:,1]
-
-    #Delete on data to save space
-    del papers2020, papers201819
-
-    #Make a set so that they can be searched faster
-    paper2020IDs = set(paper2020IDs.flatten())
-    journal2020IDs = set(journal2020IDs.flatten())
-    paper201819IDs = set(paper201819IDs.flatten())
-    journal201819IDs = set(journal201819IDs.flatten())
-
-    totalcnt = 0
-    cnt = 0
-    backup = 21
-    check = True
-    pastbackup20 = False
-
-    with open("test1.csv", 'rt') as f:
-        reader = csv.reader(f)
-        df = pd.DataFrame(columns=['src','trg'])
-
-        for row in reader:
-            try:
-                current_citing_paper = int(row[0])
-                current_cited_paper = int(row[1])
-                if current_citing_paper in paper2020IDs and current_cited_paper in paper201819IDs:
-                    a_series = pd.Series([current_citing_paper,current_cited_paper], index = df.columns)
-                    df = df.append(a_series, ignore_index=True)
-                    cnt += 1
-            except IndexError:
-                pass
-            
-            except ValueError:
-                pass
-
-            if pastbackup20 == True:
-                totalcnt += 1
-                if totalcnt % 100000 == 0 and totalcnt != 0:
-                    print(totalcnt)
-            
-                if totalcnt % 5000000 == 0 and totalcnt != 0:
-                #Report progress
-                    print("Items found:" + str(cnt))
-                    print("Items searched:" + str(totalcnt)+" start this far after 3092559809 in cutrefs12 if messed up (replace 3092559809 with the next unique number after" +  str(totalcnt)+")")
-                    df.to_csv('backup{}.csv'.format(backup), index=False)
-                    backup += 1
-                
-        print("Final Items found: "+ str(cnt))
-        print("Final Items searched: "+str(totalcnt))
-        print(df.head())
-        df.to_csv('testedUNTRANSLATED.csv', index=False)
-
-    journal201819IDs = list(journal201819IDs)
-    journal2020IDs = list(journal2020IDs)
-    paper201819IDs = list(paper201819IDs)
-    paper2020IDs = list(paper2020IDs)
-    print(df)
-
-    print("Replacing Ids...")
-    for i in range(len(journal201819IDs)):
-        df.replace(paper201819IDs[i], journal201819IDs[i],inplace=True)
-
-    print(paper2020IDs)
-    for i in range(len(journal2020IDs)):
-        df.replace(paper2020IDs[i], journal2020IDs[i],inplace=True)
-        
-    df = df.groupby(df.columns.values.tolist()).size().reset_index()
-    df = df.rename(columns={0:'weight'})
-    print(df)
-    df.to_csv('testedTRANSLATED.csv', index=False)
-    print("Final Items removed: "+ str(cnt))
-    print("Final Items searched: "+str(totalcnt))
-    del df
-
-
-
-def replace():
+def translate_refs():
     #Create the csv file that contains source-target connections
     maxInt = sys.maxsize
     while True:
@@ -214,8 +116,8 @@ def replace():
 
     #Create csv file of just references citer -> citee
     cnt,totalcnt = 0, 0
-    papers2020 = pd.read_csv("Paper_ID-Journal_ID2020.csv")
-    papers201819 = pd.read_csv("Paper_ID-Journal_ID201819.csv")
+    papers2020 = pd.read_csv("2020paper-journals.csv")
+    papers201819 = pd.read_csv("201819paper-journals.csv")
 
     #Remove duplicates as this is an ID file
     papers2020 = papers2020.drop_duplicates()
@@ -234,7 +136,7 @@ def replace():
     #Delete on data to save space
     del papers2020, papers201819
     
-    df = pd.read_csv("EDGETABLEUNTRANSLATED.csv")
+    df = pd.read_csv("Untranslated_Refs.csv")
 
     totalcnt = 0
 
@@ -275,7 +177,6 @@ def replace():
 
         totalcnt += 1
     
-    totalcnt = 0
     print("starting 201819")
     for paperID201819 in search201819dict.keys():
         if paperID201819 not in untrans201819dict.keys():
@@ -299,7 +200,9 @@ def replace():
     print("Final Items searched: "+str(totalcnt))
     del journal_df
 
-def check():
+#####################################################################
+
+def clean_refs():
     #Create the csv file that contains source-target connections
     maxInt = sys.maxsize
     while True:
@@ -310,62 +213,44 @@ def check():
             maxInt = int(maxInt/10)
 
     #Create csv file of just references citer -> citee
-    df = []
     cnt,totalcnt = 0, 0
-    papers2020 = pd.read_csv("Paper_ID-Journal_ID2020.csv")
-    papers201819 = pd.read_csv("Paper_ID-Journal_ID201819.csv")
-    papers2020 = papers2020.values
-    papers201819 = papers201819.values
-    paper2020IDs = papers2020[:,0]
-    journal2020IDs = papers2020[:,1]
-    paper201819IDs = papers201819[:,0]
-    journal201819IDs = papers201819[:,1]
+    papers2020 = pd.read_csv("2020paper-journals.csv")
+    papers201819 = pd.read_csv("201819paper-journals.csv")
+
+    paperdict2020 = dict(zip(papers2020.values[:,0],papers2020.values[:,1]))
+    paperdict201819 = dict(zip(papers201819.values[:,0],papers201819.values[:,1]))
     del papers2020, papers201819
-    min2020, min201819 = np.min(paper2020IDs), np.min(paper201819IDs)
-    cnt = 0
-    filenum = 9
+
+    refdict = dict.fromkeys(["src","trg"])
+
     with open('MAG_Untouched_References.txt', newline='', encoding='utf-8') as f:
         reader = csv.reader(f,delimiter='\t')
-        cnt = 0
-        totalcnt = 0
         for row in reader:
-            if totalcnt >= 1650000000:
-                try:
-                    current_citing_paper = int(row[0])
-                    current_cited_paper = int(row[1])
-                    if current_citing_paper >= min2020 and current_cited_paper >= min201819:
-                        df.append([current_citing_paper,current_cited_paper])
-                        cnt += 1
-                except IndexError:
-                    pass
-                except ValueError:
-                    pass
-            if totalcnt % 100000000 == 0 and totalcnt != 0:
+            if int(row[0]) in paperdict2020 and int(row[1]) in paperdict201819:
+                if refdict["src"] == None or refdict["trg"] == None:
+                    refdict["src"] = [int(row[0])]
+                    refdict["trg"] = [int(row[1])]
+                else:
+                    refdict["src"].append(int(row[0]))
+                    refdict["trg"].append(int(row[1]))
+                
+                cnt += 1
+
+            totalcnt += 1
+            if totalcnt % 1000000 == 0 and totalcnt != 0:
                 #Report progress
                 print("Items collected:" + str(cnt))
                 print("Items searched:" + str(totalcnt))
-            totalcnt += 1
-            
+        
+    print("Final references seached through: " +str(totalcnt))
+    print("Final refs from 2020 to 2018 or 2019 papers: " +str(cnt))
 
-        print("Final Items collected: "+str(cnt))
-        print("Final Items searched: "+str(totalcnt))
-        print("making df...")
-        df = pd.DataFrame(df,columns = ["2020Paper_ID(Source)", "2018/2019Paper_ID(Target)"])
-        print("checking na...")
-        df.dropna(inplace=True)
-        print("saving to file...")
-        print(df)
-        df.to_csv("Cut_Refs12.csv",index = False)
-        print("Done!")
-        filenum += 1
-        del df
-    print(cnt)
-
-
+    # Store refs
+    refdict = pd.DataFrame.from_dict(refdict)
+    refdict.to_csv('Untranslated_Refs.csv', index=False)
 
 if __name__ == "__main__":
     #clean_journals()
     #clean_papers()
-    #check()
-    #clean_Refs()
-    replace()
+    #clean_refs()
+    translate_refs()
