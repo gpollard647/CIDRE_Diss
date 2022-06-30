@@ -25,13 +25,13 @@ def clean_journals():
 
     journals = np.array([[row[0] for row in data],[row[3] for row in data],[row[7] for row in data],[row[9] for row in data]])
     journals = np.transpose(journals)
-    df = pd.DataFrame(journals, columns = ["Journal_ID", "Journal_Name", "Num_Papers","Num_Citations"])
+    df = pd.DataFrame(journals, columns = ["journal_id", "namename", "Num_Papers","Num_Citations"])
     df.dropna(inplace=True)
     df.to_csv("More_Journal_Info.csv",index = False)
 
-    df = pd.DataFrame(journals[:,[0,1]],columns = ["Journal_ID", "Journal_Name"])
+    df = pd.DataFrame(journals[:,[0,1]],columns = ["journal_id", "name"])
     df.dropna(inplace=True)
-    df.to_csv("Journal_ID-Journal_Names.csv",index = False)
+    df.to_csv("journal_id-name.csv",index = False)
 
 ##########################################################################################
 
