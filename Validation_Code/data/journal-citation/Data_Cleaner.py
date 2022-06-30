@@ -31,7 +31,7 @@ def clean_journals():
 
     df = pd.DataFrame(journals[:,[0,1]],columns = ["journal_id", "name"])
     df.dropna(inplace=True)
-    df.to_csv("journal_id-name.csv",index = False)
+    df.to_csv("ALLjournal_id-name.csv",index = False)
 
 ##########################################################################################
 
@@ -192,9 +192,43 @@ def translate_refs():
 
     del df
 
+    # Make a journal names file for journals only of interests
+    all_journal_names = pd.read_csv("ALLjournal_id-name.csv")
+    all_journal_names = dict(zip(all_journal_names.values[:,0],all_journal_names.values[:,1]))
+
+    journal_names_of_interest = dict.fromkeys(["journal_id","name"])
+
+    lenjournals = len(all_journal_names.keys())
+
+    unique_journals_of_interest = np.unique(np.concatenate([journal_df.values[:,0],journal_df.values[:,1]]))
+
+    journalcount = 0
+
+    print("Finding journals of interest")
+    for journalID in all_journal_names:
+        if journalID in unique_journals_of_interest:
+            if journal_names_of_interest["journal_id"] == None or journal_names_of_interest["name"] == None:
+                print("Done initial")
+                journal_names_of_interest["journal_id"] = [journalID]
+                journal_names_of_interest["name"] = [all_journal_names[journalID]]
+
+            else:
+                journal_names_of_interest["journal_id"].append(journalID)
+                journal_names_of_interest["name"].append(all_journal_names[journalID])
+        journalcount += 1
+        if journalcount % 1000 == 0 and journalcount != 0:
+            print(str(lenjournals-journalcount) + " journals left!")
+
+    journal_names_of_interest = pd.DataFrame.from_dict(journal_names_of_interest)
+    
+    # Find wieghts of edges by counting duplicates, save names and edge table to file
     journal_df = journal_df.groupby(journal_df.columns.values.tolist()).size().reset_index()
     journal_df = journal_df.rename(columns={0:'weight'})
+    print("Journals of interest:")
+    print(journal_names_of_interest)
+    print("Edge table:")
     print(journal_df)
+    journal_names_of_interest.to_csv('journals_of_interest.csv', index=False)
     journal_df.to_csv('edge-table-2020.csv', index=False)
     print("Final Items removed: "+ str(cnt))
     print("Final Items searched: "+str(totalcnt))
