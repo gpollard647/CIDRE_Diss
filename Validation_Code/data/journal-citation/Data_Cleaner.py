@@ -187,32 +187,10 @@ def translate_refs():
             for index in untrans201819dict[untrans201819ref]:
                 untrans201819[index] = search201819dict[untrans201819ref]
         totalcnt += 1
-                
 
-    # for paperID2020 in search2020dict:
-    #     if paperID2020 not in untrans2020dict:
-    #         nonecnt += 1
-    #         continue
-    #     for index in untrans2020dict[paperID2020]:
-    #         untrans2020[index] = search2020dict[paperID2020]
-    #     totalcnt += 1
-    
-   
-    # for paperID201819 in search201819dict:
-    #     if paperID201819 not in untrans201819dict:
-    #         nonecnt += 1
-    #         continue
-    #     for index in untrans201819dict[paperID201819]:
-    #         untrans201819[index] = search201819dict[paperID201819]
-    #     totalcnt += 1
-
-    journal_df = np.vstack((untrans201819,untrans2020))
-    journal_df = np.transpose(journal_df)
-
-    journal_df = pd.DataFrame(journal_df,columns=['src','trg'])
-    journal_df.to_csv('unweighted_translated.csv', index=False)
-
-    del df
+    temp = np.vstack((untrans201819,untrans2020))
+    temp = np.transpose(temp)
+    temp = pd.DataFrame(temp,columns=['src','trg'])
 
     # Make a journal names file for journals only of interests
     all_journal_names = pd.read_csv("ALLjournal_id-name.csv")
@@ -220,29 +198,43 @@ def translate_refs():
 
     journal_names_of_interest = dict.fromkeys(["journal_id","name"])
 
-    lenjournals = len(all_journal_names.keys())
+    unique_journals_of_interest = np.unique(np.concatenate((temp.values[:,0],temp.values[:,1]), axis = None))
 
-    unique_journals_of_interest = np.unique(np.concatenate([journal_df.values[:,0],journal_df.values[:,1]]))
+    del temp, df
 
-    journalcount = 0
+    journalcount,notint,interesting = 0,0,0
 
     print("Finding journals of interest")
-    for journalID in all_journal_names:
-        if journalID in unique_journals_of_interest:
+    for journalID in unique_journals_of_interest:
+        if journalID in all_journal_names.keys():
             if journal_names_of_interest["journal_id"] == None or journal_names_of_interest["name"] == None:
                 print("Done initial")
                 journal_names_of_interest["journal_id"] = [journalID]
                 journal_names_of_interest["name"] = [all_journal_names[journalID]]
+                interesting += 1
 
             else:
                 journal_names_of_interest["journal_id"].append(journalID)
                 journal_names_of_interest["name"].append(all_journal_names[journalID])
+                interesting += 1
+
+        else:
+            notint += 1
+            
         journalcount += 1
         if journalcount % 1000 == 0 and journalcount != 0:
-            print(str(lenjournals-journalcount) + " journals left!")
+            print(str(len(unique_journals_of_interest)-journalcount) + " journals left!")
+    
+    print(str(interesting) + " journals of interest")
+    print(str(notint) + " journals not in the names file")
 
     journal_names_of_interest = pd.DataFrame.from_dict(journal_names_of_interest)
     
+    journal_df = np.vstack((untrans201819,untrans2020))
+    journal_df = np.transpose(journal_df)
+
+    journal_df = pd.DataFrame(journal_df,columns=['src','trg'])
+
     # Find wieghts of edges by counting duplicates, save names and edge table to file
     journal_df = journal_df.groupby(journal_df.columns.values.tolist()).size().reset_index()
     journal_df = journal_df.rename(columns={0:'weight'})
