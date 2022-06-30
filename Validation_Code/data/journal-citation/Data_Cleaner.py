@@ -203,6 +203,7 @@ def translate_refs():
     del temp, df
 
     journalcount,notint,interesting = 0,0,0
+    remove= list()
 
     print("Finding journals of interest")
     for journalID in unique_journals_of_interest:
@@ -219,6 +220,7 @@ def translate_refs():
                 interesting += 1
 
         else:
+            remove.append(journalID)
             notint += 1
             
         journalcount += 1
@@ -227,12 +229,23 @@ def translate_refs():
     
     print(str(interesting) + " journals of interest")
     print(str(notint) + " journals not in the names file")
+    before = len(untrans201819)
+
+    for removalID in remove:
+        tempremove = np.where(removalID == untrans201819)
+        untrans201819 = np.delete(untrans201819,tempremove)
+        untrans2020 = np.delete(untrans2020,tempremove)
+
+        tempremove = np.where(removalID == untrans2020)
+        untrans201819 = np.delete(untrans201819,tempremove)
+        untrans2020 = np.delete(untrans2020,tempremove)
+    
+    print(str(before-len(untrans201819)) + " references removed as their journal ID was not in the journal names file")
+
 
     journal_names_of_interest = pd.DataFrame.from_dict(journal_names_of_interest)
-    
     journal_df = np.vstack((untrans201819,untrans2020))
     journal_df = np.transpose(journal_df)
-
     journal_df = pd.DataFrame(journal_df,columns=['src','trg'])
 
     # Find wieghts of edges by counting duplicates, save names and edge table to file
