@@ -167,28 +167,50 @@ def translate_refs():
     #untrans2020dict {paperID: [indices]}
 
     totalcnt = 0
-    print("starting 2020")
-    for paperID2020 in search2020dict.keys():
-        if paperID2020 not in untrans2020dict.keys():
-            totalcnt += 1
-            continue
-        for index in untrans2020dict[paperID2020]:
-            untrans2020[index] = search2020dict[paperID2020]
 
+    print("starting 2020")
+    for untrans2020ref in untrans2020dict.keys():
+        if untrans2020ref not in search2020dict.keys():
+            untrans2020dict.pop(untrans2020ref)
+            print("pop: "+str(untrans2020ref)+ " from 2020 as it is not in 201819 papers.")
+        else:
+            for index in untrans2020dict[untrans2020ref]:
+                untrans2020[index] = search2020dict[untrans2020ref]
         totalcnt += 1
-    
+
     print("starting 201819")
-    for paperID201819 in search201819dict.keys():
-        if paperID201819 not in untrans201819dict.keys():
-            continue
-        for index in untrans201819dict[paperID201819]:
-            untrans201819[index] = search201819dict[paperID201819]
+    for untrans201819ref in untrans201819dict.keys():
+        if untrans201819ref not in search201819dict.keys():
+            untrans201819dict.pop(untrans201819ref)
+            print("pop: "+str(untrans201819ref)+ " from 201819 as it is not in 201819 papers.")
+        else:
+            for index in untrans201819dict[untrans201819ref]:
+                untrans201819[index] = search201819dict[untrans201819ref]
         totalcnt += 1
-        
+                
+
+    # for paperID2020 in search2020dict:
+    #     if paperID2020 not in untrans2020dict:
+    #         nonecnt += 1
+    #         continue
+    #     for index in untrans2020dict[paperID2020]:
+    #         untrans2020[index] = search2020dict[paperID2020]
+    #     totalcnt += 1
+    
+   
+    # for paperID201819 in search201819dict:
+    #     if paperID201819 not in untrans201819dict:
+    #         nonecnt += 1
+    #         continue
+    #     for index in untrans201819dict[paperID201819]:
+    #         untrans201819[index] = search201819dict[paperID201819]
+    #     totalcnt += 1
+
     journal_df = np.vstack((untrans201819,untrans2020))
     journal_df = np.transpose(journal_df)
 
     journal_df = pd.DataFrame(journal_df,columns=['src','trg'])
+    journal_df.to_csv('unweighted_translated.csv', index=False)
 
     del df
 
