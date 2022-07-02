@@ -311,7 +311,7 @@ def clean_refs():
     refdict.to_csv('Untranslated_Refs.csv', index=False)
 
 if __name__ == "__main__":
-    #clean_journals()
-    #clean_papers()
-    #clean_refs()
+    clean_journals()
+    clean_papers()
+    clean_refs()
     translate_refs()
